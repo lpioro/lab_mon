@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="pl" data-bs-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Lab Mon · Proxmox</title>
+  <link rel="icon" href="/mark.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/bootstrap.min.css">
+  <link rel="stylesheet" href="/style.css">
+  <script src="/app.js" defer></script>
+</head>
+<body>
+  <div class="app-layout">
+    <aside class="sidebar">
+      <div class="brand"><img src="/mark.svg" alt="" width="36" height="36"><div><strong>Lab Mon</strong><small>PROXMOX VE</small></div></div>
+      <nav class="nav nav-pills" aria-label="Menu dashboardu">
+        <button type="button" class="nav-link active" data-view="topology" aria-controls="topology-view" aria-pressed="true"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3" width="6" height="5" rx="1"/><path d="M12 8v5m-7 3v-3h14v3m-7-3v3"/><rect x="2" y="16" width="6" height="5" rx="1"/><rect x="9" y="16" width="6" height="5" rx="1"/><rect x="16" y="16" width="6" height="5" rx="1"/></svg>Topologia</button>
+        <button type="button" class="nav-link" data-view="table" aria-controls="table-view" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18m-18 5h18M10 9v11"/></svg>Tabela adresów</button>
+      </nav>
+      <div class="sidebar-foot"><span class="mode-dot"></span><span id="mode">Tylko odczyt</span></div>
+    </aside>
+
+    <main class="main">
+      <header class="intro d-flex flex-wrap align-items-end justify-content-between gap-3">
+        <div>
+          <p class="eyebrow">INWENTARYZACJA LABORATORIUM</p>
+          <h1 id="title">Lab Mon · Proxmox</h1>
+          <p id="description" class="text-body-secondary mb-0">Topologia, adresacja i stan środowiska Proxmox.</p>
+        </div>
+        <div class="snapshot d-flex flex-wrap gap-2 align-items-center">
+          <span id="poll-status" class="small text-body-secondary" role="status">Pobieranie danych…</span>
+          <button type="button" class="btn btn-outline-secondary btn-sm" id="refresh">Odśwież</button>
+        </div>
+      </header>
+
+      <section class="row row-cols-2 row-cols-xl-4 g-2 g-lg-3 my-3" aria-label="Podsumowanie">
+        <div class="col"><div class="card metric"><span>Węzły</span><strong id="node-count">—</strong></div></div>
+        <div class="col"><div class="card metric"><span>Kontenery LXC</span><strong id="lxc-count">—</strong></div></div>
+        <div class="col"><div class="card metric"><span>Maszyny VM</span><strong id="vm-count">—</strong></div></div>
+        <div class="col"><div class="card metric"><span>Usługi w konfiguracji</span><strong id="service-count">—</strong></div></div>
+      </section>
+
+      <div class="source-list mb-3" id="sources" aria-label="Stan źródeł"></div>
+      <section class="card workspace" aria-label="Eksplorator środowiska">
+        <div class="filters d-flex flex-wrap gap-2">
+          <label class="flex-grow-1"><span class="visually-hidden">Szukaj w inwentarzu</span><input id="search" class="form-control form-control-sm" type="search" placeholder="Szukaj nazwy, IP, mostu lub usługi" autocomplete="off"></label>
+          <label><span class="visually-hidden">Źródło</span><select id="source-filter" class="form-select form-select-sm"><option value="">Wszystkie źródła</option></select></label>
+          <label><span class="visually-hidden">Typ zasobu</span><select id="kind-filter" class="form-select form-select-sm"><option value="">Wszystkie typy</option><option value="lxc">LXC</option><option value="qemu">VM</option></select></label>
+          <label><span class="visually-hidden">Stan gościa</span><select id="status-filter" class="form-select form-select-sm"><option value="">Wszystkie stany</option><option value="running">Uruchomiony</option><option value="stopped">Zatrzymany</option></select></label>
+        </div>
+        <div class="explorer">
+          <div class="primary p-3">
+            <div class="d-flex justify-content-between align-items-baseline gap-2 mb-3">
+              <h2 class="h5 mb-0" id="view-title">Topologia</h2><span id="results" class="small text-body-secondary" role="status"></span>
+            </div>
+            <div id="topology-view"></div>
+            <div id="table-view" hidden></div>
+          </div>
+          <aside class="details p-3" id="detail" aria-label="Szczegóły zasobu">
+            <h2 class="h5">Szczegóły zasobu</h2><p class="small text-body-secondary">Wybierz kontener lub VM, aby sprawdzić konfigurację sieci i usług.</p>
+          </aside>
+        </div>
+      </section>
+      <footer class="small text-body-secondary mt-3">Adresy gości pochodzą z konfiguracji Proxmoxa. Wpisy usług opisują konfigurację lokalną i jej zależności.</footer>
+    </main>
+  </div>
+  <noscript>Włącz JavaScript, aby korzystać z dashboardu.</noscript>
+</body>
+</html>

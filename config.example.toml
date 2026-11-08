@@ -1,0 +1,28 @@
+[dashboard]
+title = "Lab Mon · Proxmox"
+description = "Topologia, adresacja i stan środowiska Proxmox."
+theme = "light"                 # light | dark
+default_view = "topology"       # topology | table
+refresh_seconds = 30
+timeout_seconds = 5
+read_guest_networks = true
+show_addresses = true
+
+[[proxmox]]
+id = "lab"
+label = "Laboratorium"
+url = "https://proxmox.example.invalid:8006"
+token_id_env = "PVE_TOKEN_ID"
+token_secret_env = "PVE_TOKEN_SECRET"
+# ca_file = "proxmox-ca.pem"
+
+# Dla niezależnej instalacji dodaj drugie [[proxmox]] z innym id
+# i innymi nazwami zmiennych tokenu. Jeden klaster wystarczy dodać raz.
+
+[[services]]
+source = "lab"
+vmid = 900
+name = "Przykładowa aplikacja"
+endpoint = "app.example.invalid:8080"
+depends_on = ["Przykładowa baza"]
+note = "Wpis opisowy. Zastąp własną konfiguracją lub usuń."

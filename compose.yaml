@@ -1,0 +1,13 @@
+services:
+  lab-mon:
+    image: ${LAB_MON_IMAGE:-ghcr.io/lpioro/lab_mon:latest}
+    ports:
+      - "127.0.0.1:${LAB_MON_PORT:-8080}:8080"
+    env_file: .env
+    volumes:
+      - ./config:/config:ro
+    restart: unless-stopped
+    read_only: true
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true

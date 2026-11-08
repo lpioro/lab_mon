@@ -1,0 +1,6 @@
+**
+!requirements.txt
+!lab_mon/
+!lab_mon/**
+**/__pycache__/
+**/*.py[cod]
