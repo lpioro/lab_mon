@@ -1,13 +1,17 @@
 import argparse
 import json
+import logging
 import os
 from pathlib import Path
+import sqlite3
 import sys
 import tomllib
+from urllib.parse import parse_qs
 
 from waitress import serve
 
 from .config import load_settings
+from .history import History, RANGES, demo_history
 from .proxmox import Snapshot
 
 
@@ -16,11 +20,12 @@ ASSETS = {
     "/style.css": ("style.css", "text/css; charset=utf-8"),
     "/bootstrap.min.css": ("bootstrap.min.css", "text/css; charset=utf-8"),
     "/app.js": ("app.js", "text/javascript; charset=utf-8"),
+    "/history.js": ("history.js", "text/javascript; charset=utf-8"),
     "/mark.svg": ("mark.svg", "image/svg+xml"),
 }
 
 
-def create_app(snapshot):
+def create_app(snapshot, history=None):
     static = Path(__file__).parent / "static"
 
     def app(environ, start_response):
@@ -34,6 +39,10 @@ def create_app(snapshot):
         elif path == "/api/snapshot":
             content_type = "application/json; charset=utf-8"
             body = json.dumps(snapshot.get(), ensure_ascii=False).encode()
+        elif path == "/api/history":
+            status, result = read_history(snapshot.settings, history, environ.get("QUERY_STRING", ""))
+            content_type = "application/json; charset=utf-8"
+            body = json.dumps(result, ensure_ascii=False).encode()
         elif path in ASSETS:
             filename, content_type = ASSETS[path]
             body = (static / filename).read_bytes()
@@ -54,6 +63,28 @@ def create_app(snapshot):
     return app
 
 
+def read_history(settings, history, query):
+    try:
+        options = parse_qs(query, max_num_fields=6)
+        span = options.get("range", ["1h"])[0]
+        source = options.get("source", [""])[0]
+        node = options.get("node", [""])[0]
+        if span not in RANGES or len(source) > 255 or len(node) > 255:
+            raise ValueError
+    except ValueError:
+        return "400 Bad Request", {"error": "Nieprawidłowe parametry historii."}
+    if not settings.history.enabled:
+        return "200 OK", {"enabled": False}
+    if settings.dashboard["demo"]:
+        return "200 OK", {"enabled": True, **demo_history(span, source, node)}
+    if history:
+        try:
+            return "200 OK", {"enabled": True, **history.query(span, source, node)}
+        except (OSError, sqlite3.Error):
+            pass
+    return "503 Service Unavailable", {"error": "Baza historii niedostępna. Sprawdź zapis w katalogu danych."}
+
+
 def main():
     parser = argparse.ArgumentParser(description="Lab Mon · dashboard Proxmoxa")
     parser.add_argument("--config", type=Path, default=os.getenv("LAB_MON_CONFIG", "config.toml"))
@@ -69,7 +100,15 @@ def main():
         sys.exit("Nie można wczytać konfiguracji. Porównaj plik z config.example.toml.")
     except ValueError as error:
         sys.exit(str(error))
-    serve(create_app(Snapshot(settings)), host=args.host, port=args.port, ident="Lab Mon")
+    snapshot = Snapshot(settings)
+    history = None
+    if settings.history.enabled and not args.demo:
+        try:
+            history = History(settings.history, settings.sources, snapshot.clients)
+            history.start()
+        except (OSError, sqlite3.Error):
+            logging.warning("Baza historii Lab Mon jest niedostępna. Sprawdź katalog danych.")
+    serve(create_app(snapshot, history), host=args.host, port=args.port, ident="Lab Mon")
 
 
 if __name__ == "__main__":

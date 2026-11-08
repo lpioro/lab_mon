@@ -6,8 +6,11 @@ services:
     env_file: .env
     volumes:
       - ./config:/config:ro
+      - lab-mon-history:/data
     restart: unless-stopped
     read_only: true
     cap_drop: [ALL]
     security_opt:
       - no-new-privileges:true
+volumes:
+  lab-mon-history:

@@ -50,6 +50,7 @@ z hosta lub kontenera, na którym działa. Zwykle potrzebuje dostępu do portu T
 | `dashboard.refresh_seconds`, `timeout_seconds` | Minimalny odstęp odczytów i limit czasu połączenia API |
 | `dashboard.read_guest_networks` | Odczyt konfiguracji sieci VM i LXC |
 | `dashboard.show_addresses` | Ukrywa adresy i bramy z API oraz pole `endpoint` usług w danych wysyłanych do przeglądarki |
+| `history.enabled`, `interval_seconds`, `retention_days` | Włączenie historii węzłów, częstotliwość próbkowania i retencja |
 | `[[proxmox]]` | Adres, etykieta, nazwy zmiennych tokenu i opcjonalne CA każdego źródła |
 | `[[services]]` | Nazwa, endpoint, opis i lista zależności przypisane przez `source` i `vmid` |
 
@@ -115,6 +116,22 @@ Aplikacja nasłuchuje domyślnie pod `127.0.0.1:8080`. Opcje `--host` i `--port`
 oraz zmienne `LAB_MON_HOST` i `LAB_MON_PORT` pozwalają zmienić adres i port.
 
 ## Zakres odczytu
+
+Zakładka **Historia** pokazuje CPU i RAM wybranego węzła w zakresie 1 godziny,
+24 godzin, 7 lub 30 dni. W tabeli są ostatnie odczyty stanu i czasu pracy.
+Wykresy pokazują średnie w przedziałach czasu. Gdy API nie odpowiada,
+aplikacja zostawia lukę. Stan offline zapisuje tylko wtedy, gdy raportuje go Proxmox.
+
+Kolektor pracuje w tle, gdy działa aplikacja. Domyślnie zapisuje próbkę co 60 s
+i usuwa odczyty starsze niż 30 dni. Historia zaczyna się od pierwszego
+udanego odczytu po uruchomieniu. W trybie `--demo` wykresy pokazują fikcyjne dane.
+
+Przy uruchomieniu przez venv baza SQLite trafia do `data/history.sqlite3`
+w katalogu roboczym. Docker Compose przechowuje ją w wolumenie `lab-mon-history`
+pod ścieżką `/data/history.sqlite3`. Po aktualizacji użyj również nowego
+`compose.yaml`, aby kontener miał wolumen do zapisu. Ścieżkę pliku można zmienić
+zmienną `LAB_MON_HISTORY_DB`. Próbki zawierają identyfikator źródła, nazwę węzła,
+czas odczytu, CPU, RAM, stan i czas pracy. Pozostają na hoście Lab Mon.
 
 - `/cluster/resources` zwraca zasoby widoczne dla tokenu i przypisanie gości do węzłów.
 - `/cluster/status` uzupełnia adresy węzłów, jeśli API je udostępnia.

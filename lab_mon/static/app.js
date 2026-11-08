@@ -46,7 +46,8 @@ function selectView(view) {
   byId("topology-view").hidden = view !== "topology";
   byId("table-view").hidden = view !== "table";
   byId("config-view").hidden = view !== "config";
-  byId("inventory-view").hidden = view === "config";
+  byId("history-view").hidden = view !== "history";
+  byId("inventory-view").hidden = view !== "topology" && view !== "table";
   text("view-title", view === "table" ? "Tabela adresów" : "Topologia");
 }
 
@@ -90,13 +91,16 @@ function initConfiguration(settings) {
   }
   configForm.elements.namedItem("show_addresses").checked = settings.show_addresses;
   configForm.elements.namedItem("read_guest_networks").checked = settings.read_guest_networks ?? true;
+  configForm.elements.namedItem("history_enabled").checked = settings.history?.enabled ?? true;
+  configForm.elements.namedItem("interval_seconds").value = settings.history?.interval_seconds ?? 60;
+  configForm.elements.namedItem("retention_days").value = settings.history?.retention_days ?? 30;
   addSettingsEntry("source", {
     id: "lab", label: "Laboratorium",
     url: settings.demo ? "https://proxmox.example.invalid:8006" : "",
     token_id_env: "PVE_TOKEN_ID", token_secret_env: "PVE_TOKEN_SECRET",
   });
   setAppearance(appearance);
-  if (currentView !== "config") selectView(appearance.default_view);
+  if (currentView === "topology") selectView(appearance.default_view);
 }
 
 function clearConfigOutput() {
@@ -151,6 +155,11 @@ function configToml() {
   ].join("\n");
   return [
     block("[dashboard]", dashboard),
+    block("[history]", {
+      enabled: configForm.elements.namedItem("history_enabled").checked,
+      interval_seconds: Number(configForm.elements.namedItem("interval_seconds").value),
+      retention_days: Number(configForm.elements.namedItem("retention_days").value),
+    }),
     ...sources.map(source => block("[[proxmox]]", source)),
     ...services.map(service => block("[[services]]", service)),
   ].join("\n\n") + "\n";

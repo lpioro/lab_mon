@@ -3,6 +3,7 @@
 !.env.example
 config.toml
 config/
+/data/
 *.pem
 *.key
 .venv/

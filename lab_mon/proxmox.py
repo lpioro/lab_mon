@@ -51,6 +51,9 @@ class Proxmox:
         except (ValueError, KeyError, TypeError):
             raise APIError("Proxmox zwrócił nieoczekiwaną odpowiedź.") from None
 
+    def node_metrics(self):
+        return self.get("/cluster/resources?type=node", list)
+
     def inventory(self, read_networks: bool):
         resources = self.get("/cluster/resources", list)
         nodes = []

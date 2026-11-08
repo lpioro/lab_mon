@@ -8,6 +8,11 @@ timeout_seconds = 5
 read_guest_networks = true
 show_addresses = true
 
+[history]
+enabled = true
+interval_seconds = 60
+retention_days = 30
+
 [[proxmox]]
 id = "lab"
 label = "Laboratorium"

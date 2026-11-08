@@ -17,17 +17,40 @@ class Source:
 
 
 @dataclass(frozen=True)
+class HistorySettings:
+    enabled: bool = True
+    interval_seconds: int = 60
+    retention_days: int = 30
+    path: Path = Path("data/history.sqlite3")
+
+
+@dataclass(frozen=True)
 class Settings:
     dashboard: dict
     sources: tuple[Source, ...]
     services: list[dict]
     timeout: int
     read_guest_networks: bool
+    history: HistorySettings = HistorySettings()
 
 
 def load_settings(path: Path, *, demo: bool = False) -> Settings:
     raw = tomllib.loads(path.read_text(encoding="utf-8")) if path.is_file() or not demo else {}
     options = raw.get("dashboard", {})
+    history_options = raw.get("history", {})
+    history_enabled = history_options.get("enabled", True)
+    history_interval = history_options.get("interval_seconds", 60)
+    history_retention = history_options.get("retention_days", 30)
+    if type(history_enabled) is not bool:
+        raise ValueError("history.enabled musi mieć wartość true albo false.")
+    if type(history_interval) is not int or not 15 <= history_interval <= 3600:
+        raise ValueError("history.interval_seconds musi mieć wartość od 15 do 3600.")
+    if type(history_retention) is not int or not 1 <= history_retention <= 365:
+        raise ValueError("history.retention_days musi mieć wartość od 1 do 365.")
+    history = HistorySettings(
+        history_enabled, history_interval, history_retention,
+        Path(os.environ.get("LAB_MON_HISTORY_DB", "data/history.sqlite3")),
+    )
     refresh = options.get("refresh_seconds", 30)
     timeout = options.get("timeout_seconds", 5)
     if type(refresh) is not int or not 5 <= refresh <= 3600:
@@ -50,6 +73,11 @@ def load_settings(path: Path, *, demo: bool = False) -> Settings:
         "default_view": default_view,
         "show_addresses": options.get("show_addresses", True),
         "demo": demo,
+        "history": {
+            "enabled": history.enabled,
+            "interval_seconds": history.interval_seconds,
+            "retention_days": history.retention_days,
+        },
     }
     for name in ("show_addresses", "read_guest_networks"):
         if type(options.get(name, True)) is not bool:
@@ -102,4 +130,4 @@ def load_settings(path: Path, *, demo: bool = False) -> Settings:
             "source": entry["source"], "vmid": vmid, "name": entry["name"],
             "endpoint": entry.get("endpoint", ""), "depends_on": depends_on, "note": entry.get("note", ""),
         })
-    return Settings(dashboard, tuple(sources), services, timeout, options.get("read_guest_networks", True))
+    return Settings(dashboard, tuple(sources), services, timeout, options.get("read_guest_networks", True), history)
