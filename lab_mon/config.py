@@ -44,6 +44,8 @@ def load_settings(path: Path, *, demo: bool = False) -> Settings:
         "title": options.get("title", "Lab Mon · Proxmox"),
         "description": options.get("description", "Topologia, adresacja i stan środowiska Proxmox."),
         "refresh_seconds": refresh,
+        "timeout_seconds": timeout,
+        "read_guest_networks": options.get("read_guest_networks", True),
         "theme": theme,
         "default_view": default_view,
         "show_addresses": options.get("show_addresses", True),

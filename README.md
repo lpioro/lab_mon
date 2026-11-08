@@ -57,6 +57,12 @@ Dla Compose pliki konfiguracji i CA muszą być czytelne dla użytkownika konten
 o UID 10001. Sekret trafia do kontenera przez `env_file`. Po zmianach uruchom
 aplikację ponownie.
 
+Zakładka **Konfiguracja** w lewym menu pozwala zapisać wygląd w przeglądarce
+i wygenerować TOML z wpisanych ustawień, źródeł oraz usług. Porównaj wynik
+z dotychczasową konfiguracją przed zapisaniem do `config/config.toml`.
+Pola tokenu przyjmują wyłącznie nazwy zmiennych środowiskowych. Ich wartości
+wpisujesz lokalnie w `.env`.
+
 ## 3. Docker
 
 Obraz `ghcr.io/lpioro/lab_mon:latest` jest budowany dla Linux/amd64 przez GitHub

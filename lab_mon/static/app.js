@@ -14,6 +14,9 @@ let currentView = "topology";
 let initialized = false;
 let refreshing = false;
 let timer;
+const configForm = byId("config-form");
+const preferenceKey = "lab-mon-appearance-v1";
+let downloadUrl = null;
 
 function stateBadge(status) {
   const active = status === "online" || status === "running";
@@ -42,8 +45,155 @@ function selectView(view) {
   }
   byId("topology-view").hidden = view !== "topology";
   byId("table-view").hidden = view !== "table";
+  byId("config-view").hidden = view !== "config";
+  byId("inventory-view").hidden = view === "config";
   text("view-title", view === "table" ? "Tabela adresów" : "Topologia");
 }
+
+function setAppearance(appearance) {
+  document.title = appearance.title;
+  document.documentElement.dataset.bsTheme = appearance.theme;
+  text("title", appearance.title);
+  text("description", appearance.description);
+}
+
+function appearanceValues() {
+  return Object.fromEntries(["title", "description", "theme", "default_view"]
+    .map(key => [key, configForm.elements.namedItem(key).value.trim()]));
+}
+
+function addSettingsEntry(kind, values = {}) {
+  const entry = byId(kind + "-template").content.firstElementChild.cloneNode(true);
+  for (const field of entry.querySelectorAll("input")) {
+    field.value = values[field.name] ?? "";
+  }
+  entry.querySelector("[data-remove]").addEventListener("click", () => {
+    entry.remove();
+    clearConfigOutput();
+  });
+  byId(kind === "source" ? "config-sources" : "config-services").append(entry);
+}
+
+function initConfiguration(settings) {
+  const appearance = { ...settings };
+  try {
+    const saved = JSON.parse(localStorage.getItem(preferenceKey));
+    if (typeof saved?.title === "string" && saved.title && typeof saved.description === "string"
+        && ["light", "dark"].includes(saved.theme) && ["topology", "table"].includes(saved.default_view)) {
+      Object.assign(appearance, saved);
+    }
+  } catch {
+    // A private browser context may block storage.
+  }
+  for (const key of ["title", "description", "theme", "default_view", "refresh_seconds", "timeout_seconds"]) {
+    configForm.elements.namedItem(key).value = appearance[key] ?? 5;
+  }
+  configForm.elements.namedItem("show_addresses").checked = settings.show_addresses;
+  configForm.elements.namedItem("read_guest_networks").checked = settings.read_guest_networks ?? true;
+  addSettingsEntry("source", {
+    id: "lab", label: "Laboratorium",
+    url: settings.demo ? "https://proxmox.example.invalid:8006" : "",
+    token_id_env: "PVE_TOKEN_ID", token_secret_env: "PVE_TOKEN_SECRET",
+  });
+  setAppearance(appearance);
+  if (currentView !== "config") selectView(appearance.default_view);
+}
+
+function clearConfigOutput() {
+  if (downloadUrl) URL.revokeObjectURL(downloadUrl);
+  downloadUrl = null;
+  byId("download-config").hidden = true;
+  byId("download-config").removeAttribute("href");
+  byId("config-output-label").hidden = true;
+  byId("config-output").value = "";
+  text("config-message", "");
+}
+
+function collectEntries(id) {
+  return [...byId(id).querySelectorAll("fieldset")].map(entry =>
+    Object.fromEntries([...entry.querySelectorAll("input")].map(field => [field.name, field.value.trim()])));
+}
+
+function configToml() {
+  const sources = collectEntries("config-sources");
+  const sourceIds = new Set(sources.map(source => source.id));
+  if (!sources.length) throw new Error("Dodaj przynajmniej jedno źródło.");
+  if (sources.length !== sourceIds.size) throw new Error("Identyfikatory źródeł muszą być unikalne.");
+  for (const source of sources) {
+    const url = new URL(source.url);
+    if (url.protocol !== "https:" || url.username || url.password || url.pathname !== "/"
+        || url.search || url.hash || url.port === "0") {
+      throw new Error("Adres źródła musi być bazowym adresem HTTPS.");
+    }
+    if (!source.label) source.label = source.id;
+    if (!source.ca_file) delete source.ca_file;
+  }
+  const services = collectEntries("config-services");
+  for (const service of services) {
+    if (!sourceIds.has(service.source) || !service.name) {
+      throw new Error("Każda usługa wymaga nazwy i identyfikatora istniejącego źródła.");
+    }
+    service.vmid = Number(service.vmid);
+    service.depends_on = service.depends_on.split(",").map(item => item.trim()).filter(Boolean);
+  }
+  const appearance = appearanceValues();
+  if (!appearance.title) throw new Error("Wpisz tytuł dashboardu.");
+  const dashboard = { ...appearance };
+  for (const key of ["refresh_seconds", "timeout_seconds"]) {
+    dashboard[key] = Number(configForm.elements.namedItem(key).value);
+  }
+  for (const key of ["read_guest_networks", "show_addresses"]) {
+    dashboard[key] = configForm.elements.namedItem(key).checked;
+  }
+  const block = (name, fields) => [
+    name, ...Object.entries(fields).map(([key, value]) =>
+      `${key} = ${JSON.stringify(value).replace(/\x7f/g, "\\u007f")}`),
+  ].join("\n");
+  return [
+    block("[dashboard]", dashboard),
+    ...sources.map(source => block("[[proxmox]]", source)),
+    ...services.map(service => block("[[services]]", service)),
+  ].join("\n\n") + "\n";
+}
+
+byId("save-appearance").addEventListener("click", () => {
+  const appearance = appearanceValues();
+  if (!appearance.title) {
+    text("appearance-status", "Wpisz tytuł dashboardu.");
+    return;
+  }
+  setAppearance(appearance);
+  try {
+    localStorage.setItem(preferenceKey, JSON.stringify(appearance));
+    text("appearance-status", "Zapisano w tej przeglądarce.");
+  } catch {
+    text("appearance-status", "Zastosowano w bieżącym widoku.");
+  }
+});
+byId("add-source").addEventListener("click", () => {
+  addSettingsEntry("source");
+  clearConfigOutput();
+});
+byId("add-service").addEventListener("click", () => {
+  addSettingsEntry("service");
+  clearConfigOutput();
+});
+configForm.addEventListener("input", clearConfigOutput);
+configForm.addEventListener("submit", event => {
+  event.preventDefault();
+  clearConfigOutput();
+  try {
+    const result = configToml();
+    byId("config-output").value = result;
+    byId("config-output-label").hidden = false;
+    downloadUrl = URL.createObjectURL(new Blob([result], { type: "application/toml" }));
+    byId("download-config").href = downloadUrl;
+    byId("download-config").hidden = false;
+    text("config-message", "TOML gotowy do pobrania lub skopiowania.");
+  } catch (error) {
+    text("config-message", error.message);
+  }
+});
 
 function render() {
   const terms = byId("search").value.toLowerCase().trim().split(/\s+/).filter(Boolean);
@@ -172,12 +322,8 @@ async function refresh() {
     data = await response.json();
     if (!initialized) {
       const settings = data.dashboard;
-      document.title = settings.title;
-      document.documentElement.dataset.bsTheme = settings.theme;
-      text("title", settings.title);
-      text("description", settings.description);
       text("mode", settings.demo ? "Tryb demonstracyjny" : "Tylko odczyt");
-      selectView(settings.default_view);
+      initConfiguration(settings);
       initialized = true;
     }
     const filter = byId("source-filter");

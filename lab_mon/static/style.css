@@ -75,3 +75,13 @@ h1 { letter-spacing: -.055em; line-height: 1.1; font-weight: 760; }
   .sidebar-foot { display: none; }
   .main { padding-top: 20px; }
 }
+.settings-card { border-color: var(--mon-line); }
+.settings-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 12px; }
+.settings-grid label { font-size: .81rem; }
+.settings-grid :is(input, select):not([type="checkbox"]) { margin-top: 3px; }
+.settings-entry { min-width: 0; padding: 9px; border: 1px solid var(--mon-line); border-radius: 7px; }
+.settings-entry legend { float: none; margin-bottom: 5px; }
+.config-output { font: .79rem var(--mon-mono); }
+@media (max-width: 620px) {
+  .settings-grid { grid-template-columns: minmax(0, 1fr); }
+}
