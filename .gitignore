@@ -1,0 +1,11 @@
+.env
+.env.*
+!.env.example
+config.toml
+config/
+*.pem
+*.key
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
