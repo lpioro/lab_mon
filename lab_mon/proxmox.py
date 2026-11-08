@@ -151,8 +151,10 @@ class Snapshot:
         with self.lock:
             if time.monotonic() - self.last_poll >= self.settings.dashboard["refresh_seconds"]:
                 self.refresh()
-            data = {"dashboard": self.settings.dashboard, "sources": list(self.cache.values()),
-                    "services": self.settings.services}
+            data = {
+                "dashboard": self.settings.dashboard, "sources": list(self.cache.values()),
+                "services": self.settings.services, "source_configuration": self.settings.source_configuration,
+            }
             if self.settings.dashboard["demo"]:
                 return demo_snapshot(data)
             if not self.settings.dashboard["show_addresses"]:
@@ -186,7 +188,11 @@ def without_addresses(data):
             networks = [{**network, **dict.fromkeys(hidden_keys)} for network in guest["networks"]]
             guests.append({**guest, "networks": networks})
         sources.append({**source, "nodes": nodes, "guests": guests})
-    return {**data, "sources": sources, "services": [{**service, "endpoint": ""} for service in data["services"]]}
+    return {
+        **data, "sources": sources,
+        "services": [{**service, "endpoint": ""} for service in data["services"]],
+        "source_configuration": [{**source, "url": ""} for source in data["source_configuration"]],
+    }
 
 
 def demo_snapshot(data):

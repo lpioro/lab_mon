@@ -32,6 +32,7 @@ class Settings:
     timeout: int
     read_guest_networks: bool
     history: HistorySettings = HistorySettings()
+    source_configuration: tuple[dict, ...] = ()
 
 
 def load_settings(path: Path, *, demo: bool = False) -> Settings:
@@ -86,6 +87,7 @@ def load_settings(path: Path, *, demo: bool = False) -> Settings:
         raise ValueError("title i description muszą być tekstem.")
 
     sources = []
+    source_configuration = []
     if not demo:
         for index, entry in enumerate(raw.get("proxmox", []), 1):
             source_id = entry["id"]
@@ -108,12 +110,17 @@ def load_settings(path: Path, *, demo: bool = False) -> Settings:
             if (not re.fullmatch(r"[^\s!=]+@[^\s!=]+![^\s!=]+", token_id)
                     or not re.fullmatch(r"[A-Za-z0-9-]+", token_secret)):
                 raise ValueError(f"Uzupełnij identyfikator i sekret tokenu w zmiennych środowiskowych źródła nr {index}.")
-            ca_file = entry.get("ca_file")
-            ca_file = str((path.parent / ca_file).resolve()) if ca_file else None
+            configured_ca = entry.get("ca_file")
+            ca_file = str((path.parent / configured_ca).resolve()) if configured_ca else None
             label = entry.get("label", source_id)
             if not isinstance(label, str) or not label.strip():
                 raise ValueError(f"Etykieta źródła nr {index} musi być tekstem.")
-            sources.append(Source(source_id, label, entry["url"].rstrip("/"), token_id, token_secret, ca_file))
+            base_url = entry["url"].rstrip("/")
+            sources.append(Source(source_id, label, base_url, token_id, token_secret, ca_file))
+            source_configuration.append({
+                "id": source_id, "label": label, "url": base_url, "ca_file": configured_ca or "",
+                "token_id_env": entry["token_id_env"], "token_secret_env": entry["token_secret_env"],
+            })
         if not sources:
             raise ValueError("Dodaj przynajmniej jedno źródło [[proxmox]] lub uruchom tryb --demo.")
 
@@ -130,4 +137,5 @@ def load_settings(path: Path, *, demo: bool = False) -> Settings:
             "source": entry["source"], "vmid": vmid, "name": entry["name"],
             "endpoint": entry.get("endpoint", ""), "depends_on": depends_on, "note": entry.get("note", ""),
         })
-    return Settings(dashboard, tuple(sources), services, timeout, options.get("read_guest_networks", True), history)
+    return Settings(dashboard, tuple(sources), services, timeout, options.get("read_guest_networks", True),
+                    history, tuple(source_configuration))

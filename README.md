@@ -49,7 +49,7 @@ z hosta lub kontenera, na którym działa. Zwykle potrzebuje dostępu do portu T
 | `dashboard.theme`, `default_view` | Motyw jasny/ciemny i widok początkowy |
 | `dashboard.refresh_seconds`, `timeout_seconds` | Minimalny odstęp odczytów i limit czasu połączenia API |
 | `dashboard.read_guest_networks` | Odczyt konfiguracji sieci VM i LXC |
-| `dashboard.show_addresses` | Ukrywa adresy i bramy z API oraz pole `endpoint` usług w danych wysyłanych do przeglądarki |
+| `dashboard.show_addresses` | Ukrywa adresy i bramy z API, adresy źródeł i pole `endpoint` usług w danych wysyłanych do przeglądarki |
 | `history.enabled`, `interval_seconds`, `retention_days` | Włączenie historii węzłów, częstotliwość próbkowania i retencja |
 | `[[proxmox]]` | Adres, etykieta, nazwy zmiennych tokenu i opcjonalne CA każdego źródła |
 | `[[services]]` | Nazwa, endpoint, opis i lista zależności przypisane przez `source` i `vmid` |
@@ -58,11 +58,12 @@ Dla Compose pliki konfiguracji i CA muszą być czytelne dla użytkownika konten
 o UID 10001. Sekret trafia do kontenera przez `env_file`. Po zmianach uruchom
 aplikację ponownie.
 
-Zakładka **Konfiguracja** w lewym menu pozwala zapisać wygląd w przeglądarce
-i wygenerować TOML z wpisanych ustawień, źródeł oraz usług. Porównaj wynik
-z dotychczasową konfiguracją przed zapisaniem do `config/config.toml`.
-Pola tokenu przyjmują wyłącznie nazwy zmiennych środowiskowych. Ich wartości
-wpisujesz lokalnie w `.env`.
+Zakładka **Konfiguracja** pokazuje ustawienia pliku TOML wczytane przy starcie.
+Można je edytować i pobrać jako nowy TOML. Przy ukrywaniu adresów uzupełnij
+adresy źródeł i usług przed użyciem wyeksportowanego pliku. Zapisany lokalnie
+wygląd ma pierwszeństwo do chwili użycia przycisku **Przywróć wygląd z pliku**.
+Pola tokenu pokazują nazwy zmiennych środowiskowych. Ich wartości wpisujesz
+lokalnie w `.env`.
 
 ## 3. Docker
 

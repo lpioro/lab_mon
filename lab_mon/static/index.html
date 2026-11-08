@@ -104,7 +104,8 @@
         </div>
       </section>
       <section id="config-view" class="mt-3" aria-labelledby="config-heading" hidden>
-        <h2 id="config-heading" class="h5 mb-3">Konfiguracja</h2>
+        <h2 id="config-heading" class="h5 mb-1">Konfiguracja</h2>
+        <p id="config-origin" class="small text-body-secondary mb-3" role="status">Wczytywanie ustawień…</p>
         <form id="config-form">
           <div class="card settings-card p-3 mb-3">
             <h3 class="h6">Wygląd i widok początkowy</h3>
@@ -116,6 +117,7 @@
             </div>
             <div class="d-flex align-items-center flex-wrap gap-2 mt-3">
               <button class="btn btn-outline-secondary btn-sm" id="save-appearance" type="button">Zastosuj w tej przeglądarce</button>
+              <button class="btn btn-outline-secondary btn-sm" id="restore-appearance" type="button" disabled>Przywróć wygląd z pliku</button>
               <span id="appearance-status" class="small text-body-secondary" role="status"></span>
             </div>
           </div>
@@ -181,7 +183,7 @@
               <label class="form-label mb-0">Nazwa<input class="form-control form-control-sm" name="name" required></label>
               <label class="form-label mb-0">Endpoint<input class="form-control form-control-sm" name="endpoint"></label>
               <label class="form-label mb-0">Zależności (oddziel przecinkami)<input class="form-control form-control-sm" name="depends_on"></label>
-              <label class="form-label mb-0">Notatka<input class="form-control form-control-sm" name="note"></label>
+              <label class="form-label mb-0">Notatka<textarea class="form-control form-control-sm" name="note" rows="2"></textarea></label>
             </div>
             <button class="btn btn-outline-secondary btn-sm mt-2" type="button" data-remove>Usuń usługę</button>
           </fieldset>

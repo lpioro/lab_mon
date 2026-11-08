@@ -83,7 +83,28 @@ class LabMonTests(unittest.TestCase):
             self.assertIsNone(stale["sources"][0]["nodes"][0]["ip"])
             self.assertIsNone(stale["sources"][0]["guests"][0]["networks"][0]["ipv4"])
             self.assertEqual(stale["services"][0]["endpoint"], "")
+            self.assertEqual(stale["source_configuration"][0]["url"], "")
             self.assertNotIn("fake-token", json.dumps(stale))
+
+    def test_saved_sources_and_services_are_visible_when_proxmox_is_unavailable(self):
+        with tempfile.TemporaryDirectory() as temp, patch.dict(
+            "os.environ", {"PVE_TOKEN_ID": "monitor@pve!test", "PVE_TOKEN_SECRET": "fake-token"}
+        ):
+            path = Path(temp) / "config.toml"
+            path.write_text(Path("config.example.toml").read_text().replace(
+                '# ca_file = "proxmox-ca.pem"', 'ca_file = "certs/lab.pem"'
+            ))
+            snapshot = Snapshot(load_settings(path))
+            result = snapshot.get()
+        self.assertIsNotNone(result["sources"][0]["error"])
+        self.assertEqual(result["source_configuration"][0], {
+            "id": "lab", "label": "Laboratorium", "url": "https://proxmox.example.invalid:8006",
+            "ca_file": "certs/lab.pem", "token_id_env": "PVE_TOKEN_ID", "token_secret_env": "PVE_TOKEN_SECRET",
+        })
+        self.assertEqual(result["services"][0]["vmid"], 900)
+        payload = json.dumps(result)
+        self.assertNotIn("fake-token", payload)
+        self.assertNotIn("monitor@pve!test", payload)
 
     def test_wsgi_demo_and_method_guard(self):
         with tempfile.TemporaryDirectory() as temp:

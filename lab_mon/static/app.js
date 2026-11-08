@@ -65,8 +65,13 @@ function appearanceValues() {
 
 function addSettingsEntry(kind, values = {}) {
   const entry = byId(kind + "-template").content.firstElementChild.cloneNode(true);
-  for (const field of entry.querySelectorAll("input")) {
-    field.value = values[field.name] ?? "";
+  for (const field of entry.querySelectorAll("input, textarea")) {
+    const value = values[field.name] ?? "";
+    field.value = Array.isArray(value) ? value.join(", ") : value;
+    if (Array.isArray(value)) {
+      entry.dataset.dependencies = JSON.stringify(value);
+      field.defaultValue = field.value;
+    }
   }
   entry.querySelector("[data-remove]").addEventListener("click", () => {
     entry.remove();
@@ -82,6 +87,7 @@ function initConfiguration(settings) {
     if (typeof saved?.title === "string" && saved.title && typeof saved.description === "string"
         && ["light", "dark"].includes(saved.theme) && ["topology", "table"].includes(saved.default_view)) {
       Object.assign(appearance, saved);
+      text("appearance-status", "Wygląd zapisany w tej przeglądarce.");
     }
   } catch {
     // A private browser context may block storage.
@@ -94,11 +100,20 @@ function initConfiguration(settings) {
   configForm.elements.namedItem("history_enabled").checked = settings.history?.enabled ?? true;
   configForm.elements.namedItem("interval_seconds").value = settings.history?.interval_seconds ?? 60;
   configForm.elements.namedItem("retention_days").value = settings.history?.retention_days ?? 30;
-  addSettingsEntry("source", {
-    id: "lab", label: "Laboratorium",
-    url: settings.demo ? "https://proxmox.example.invalid:8006" : "",
-    token_id_env: "PVE_TOKEN_ID", token_secret_env: "PVE_TOKEN_SECRET",
-  });
+  if (settings.demo) {
+    addSettingsEntry("source", {
+      id: "lab", label: "Laboratorium", url: "https://proxmox.example.invalid:8006",
+      token_id_env: "PVE_TOKEN_ID", token_secret_env: "PVE_TOKEN_SECRET",
+    });
+    text("config-origin", "Tryb demonstracyjny. Formularz zawiera przykładowe źródło.");
+  } else {
+    for (const source of data.source_configuration) addSettingsEntry("source", source);
+    for (const service of data.services) addSettingsEntry("service", service);
+    text("config-origin", settings.show_addresses
+      ? "Ustawienia wczytane przy starcie aplikacji."
+      : "Ustawienia wczytane przy starcie. Adresy źródeł i usług ukrywa opcja show_addresses.");
+  }
+  byId("restore-appearance").disabled = false;
   setAppearance(appearance);
   if (currentView === "topology") selectView(appearance.default_view);
 }
@@ -115,7 +130,15 @@ function clearConfigOutput() {
 
 function collectEntries(id) {
   return [...byId(id).querySelectorAll("fieldset")].map(entry =>
-    Object.fromEntries([...entry.querySelectorAll("input")].map(field => [field.name, field.value.trim()])));
+    Object.fromEntries([...entry.querySelectorAll("input, textarea")].map(field => {
+      if (field.name === "depends_on") {
+        const values = entry.dataset.dependencies && field.value === field.defaultValue
+          ? JSON.parse(entry.dataset.dependencies)
+          : field.value.split(",").map(item => item.trim()).filter(Boolean);
+        return [field.name, values];
+      }
+      return [field.name, field.value.trim()];
+    })));
 }
 
 function configToml() {
@@ -138,7 +161,6 @@ function configToml() {
       throw new Error("Każda usługa wymaga nazwy i identyfikatora istniejącego źródła.");
     }
     service.vmid = Number(service.vmid);
-    service.depends_on = service.depends_on.split(",").map(item => item.trim()).filter(Boolean);
   }
   const appearance = appearanceValues();
   if (!appearance.title) throw new Error("Wpisz tytuł dashboardu.");
@@ -177,6 +199,19 @@ byId("save-appearance").addEventListener("click", () => {
     text("appearance-status", "Zapisano w tej przeglądarce.");
   } catch {
     text("appearance-status", "Zastosowano w bieżącym widoku.");
+  }
+});
+byId("restore-appearance").addEventListener("click", () => {
+  for (const key of ["title", "description", "theme", "default_view"]) {
+    configForm.elements.namedItem(key).value = data.dashboard[key];
+  }
+  setAppearance(data.dashboard);
+  clearConfigOutput();
+  try {
+    localStorage.removeItem(preferenceKey);
+    text("appearance-status", "Przywrócono wygląd z konfiguracji.");
+  } catch {
+    text("appearance-status", "Przywrócono wygląd w bieżącym widoku.");
   }
 });
 byId("add-source").addEventListener("click", () => {
