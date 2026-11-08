@@ -1,6 +1,7 @@
 from dataclasses import dataclass, field
 from pathlib import Path
 from urllib.parse import urlsplit
+from ipaddress import IPv4Network, IPv6Network, ip_network
 import os
 import re
 import tomllib
@@ -24,6 +25,18 @@ class HistorySettings:
     path: Path = Path("data/history.sqlite3")
 
 
+DEFAULT_DISCOVERY_PORTS = (22, 80, 443, 1883, 5000, 5678, 6052, 8006, 8080, 8123, 8443, 8883)
+PRIVATE_NETWORKS = tuple(map(ip_network, ("10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16", "fc00::/7")))
+
+
+@dataclass(frozen=True)
+class DiscoverySettings:
+    enabled: bool = False
+    interval_seconds: int = 300
+    cidrs: tuple[IPv4Network | IPv6Network, ...] = ()
+    ports: tuple[int, ...] = DEFAULT_DISCOVERY_PORTS
+
+
 @dataclass(frozen=True)
 class Settings:
     dashboard: dict
@@ -33,11 +46,40 @@ class Settings:
     read_guest_networks: bool
     history: HistorySettings = HistorySettings()
     source_configuration: tuple[dict, ...] = ()
+    discovery: DiscoverySettings = DiscoverySettings()
+
+
+def load_discovery(options):
+    enabled = options.get("enabled", False)
+    interval = options.get("interval_seconds", 300)
+    cidrs = options.get("cidrs", [])
+    ports = options.get("ports", list(DEFAULT_DISCOVERY_PORTS))
+    if type(enabled) is not bool:
+        raise ValueError("discovery.enabled musi mieć wartość true albo false.")
+    if type(interval) is not int or not 60 <= interval <= 86400:
+        raise ValueError("discovery.interval_seconds musi mieć wartość od 60 do 86400.")
+    if (not isinstance(ports, list) or not 1 <= len(ports) <= 32
+            or not all(type(port) is int and 1 <= port <= 65535 for port in ports)):
+        raise ValueError("discovery.ports musi zawierać od 1 do 32 portów TCP z zakresu 1–65535.")
+    if (not isinstance(cidrs, list) or len(cidrs) > 16
+            or not all(isinstance(cidr, str) and "/" in cidr for cidr in cidrs)):
+        raise ValueError("discovery.cidrs musi zawierać do 16 podsieci w zapisie CIDR.")
+    try:
+        networks = tuple(dict.fromkeys(ip_network(cidr) for cidr in cidrs))
+    except ValueError:
+        raise ValueError("Nieprawidłowa podsieć w discovery.cidrs.") from None
+    if any(not any(network.version == private.version and network.subnet_of(private)
+                   for private in PRIVATE_NETWORKS) for network in networks):
+        raise ValueError("discovery.cidrs dopuszcza prywatne podsieci IPv4 i IPv6 ULA.")
+    if enabled and not networks:
+        raise ValueError("Aby włączyć wykrywanie usług, dodaj podsieć do discovery.cidrs.")
+    return DiscoverySettings(enabled, interval, networks, tuple(dict.fromkeys(ports)))
 
 
 def load_settings(path: Path, *, demo: bool = False) -> Settings:
     raw = tomllib.loads(path.read_text(encoding="utf-8")) if path.is_file() or not demo else {}
     options = raw.get("dashboard", {})
+    discovery = load_discovery(raw.get("discovery", {}))
     history_options = raw.get("history", {})
     history_enabled = history_options.get("enabled", True)
     history_interval = history_options.get("interval_seconds", 60)
@@ -78,6 +120,12 @@ def load_settings(path: Path, *, demo: bool = False) -> Settings:
             "enabled": history.enabled,
             "interval_seconds": history.interval_seconds,
             "retention_days": history.retention_days,
+        },
+        "discovery": {
+            "enabled": discovery.enabled,
+            "interval_seconds": discovery.interval_seconds,
+            "ports": discovery.ports,
+            "cidrs": [str(network) for network in discovery.cidrs] if options.get("show_addresses", True) else [],
         },
     }
     for name in ("show_addresses", "read_guest_networks"):
@@ -138,4 +186,4 @@ def load_settings(path: Path, *, demo: bool = False) -> Settings:
             "endpoint": entry.get("endpoint", ""), "depends_on": depends_on, "note": entry.get("note", ""),
         })
     return Settings(dashboard, tuple(sources), services, timeout, options.get("read_guest_networks", True),
-                    history, tuple(source_configuration))
+                    history, tuple(source_configuration), discovery)

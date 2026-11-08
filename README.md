@@ -51,6 +51,7 @@ z hosta lub kontenera, na którym działa. Zwykle potrzebuje dostępu do portu T
 | `dashboard.read_guest_networks` | Odczyt konfiguracji sieci VM i LXC |
 | `dashboard.show_addresses` | Ukrywa adresy i bramy z API, adresy źródeł i pole `endpoint` usług w danych wysyłanych do przeglądarki |
 | `history.enabled`, `interval_seconds`, `retention_days` | Włączenie historii węzłów, częstotliwość próbkowania i retencja |
+| `discovery.enabled`, `interval_seconds`, `cidrs`, `ports` | Włączenie wykrywania usług, odstęp skanów, dozwolone podsieci i porty TCP |
 | `[[proxmox]]` | Adres, etykieta, nazwy zmiennych tokenu i opcjonalne CA każdego źródła |
 | `[[services]]` | Nazwa, endpoint, opis i lista zależności przypisane przez `source` i `vmid` |
 
@@ -117,6 +118,30 @@ Aplikacja nasłuchuje domyślnie pod `127.0.0.1:8080`. Opcje `--host` i `--port`
 oraz zmienne `LAB_MON_HOST` i `LAB_MON_PORT` pozwalają zmienić adres i port.
 
 ## Zakres odczytu
+
+### Wykrywanie usług
+
+Zakładka **Wykrywanie usług** pokazuje wynik ostatniego skanu TCP. Aby uruchomić
+wykrywanie, dodaj lub uzupełnij sekcję `[discovery]` w pliku konfiguracji i
+zrestartuj Lab Mon. Przykład z fikcyjną podsiecią
+
+```toml
+[discovery]
+enabled = true
+interval_seconds = 300
+cidrs = ["10.123.0.0/24"]
+ports = [22, 80, 443, 1883, 5678, 8080, 8123]
+```
+
+Skaner korzysta z adresów uruchomionych VM i LXC odczytanych z konfiguracji
+Proxmoxa (`read_guest_networks = true`). Podsieci ograniczają listę tych adresów.
+Adres przydzielony przez DHCP wymaga odczytu spoza bieżącego zakresu skanera.
+Jeden przebieg sprawdza do 64 adresów i 32 wskazanych portów. Wykrycie oznacza,
+że port przyjął połączenie TCP z hosta Lab Mon. Nazwa aplikacji jest wskazówką
+wynikającą z typowego portu. Wynik jest przechowywany w pamięci i aktualizowany
+w tle. Usługi i zależności wpisane w `[[services]]` służą jako osobny opis.
+
+### Historia hostów
 
 Zakładka **Historia** pokazuje CPU i RAM wybranego węzła w zakresie 1 godziny,
 24 godzin, 7 lub 30 dni. W tabeli są ostatnie odczyty stanu i czasu pracy.

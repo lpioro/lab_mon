@@ -11,6 +11,7 @@ from urllib.parse import parse_qs
 from waitress import serve
 
 from .config import load_settings
+from .discovery import Discovery, demo_discovery, initial_result
 from .history import History, RANGES, demo_history
 from .proxmox import Snapshot
 
@@ -21,11 +22,12 @@ ASSETS = {
     "/bootstrap.min.css": ("bootstrap.min.css", "text/css; charset=utf-8"),
     "/app.js": ("app.js", "text/javascript; charset=utf-8"),
     "/history.js": ("history.js", "text/javascript; charset=utf-8"),
+    "/discovery.js": ("discovery.js", "text/javascript; charset=utf-8"),
     "/mark.svg": ("mark.svg", "image/svg+xml"),
 }
 
 
-def create_app(snapshot, history=None):
+def create_app(snapshot, history=None, discovery=None):
     static = Path(__file__).parent / "static"
 
     def app(environ, start_response):
@@ -41,6 +43,13 @@ def create_app(snapshot, history=None):
             body = json.dumps(snapshot.get(), ensure_ascii=False).encode()
         elif path == "/api/history":
             status, result = read_history(snapshot.settings, history, environ.get("QUERY_STRING", ""))
+            content_type = "application/json; charset=utf-8"
+            body = json.dumps(result, ensure_ascii=False).encode()
+        elif path == "/api/discovery":
+            if snapshot.settings.dashboard["demo"]:
+                result = demo_discovery(snapshot.settings.dashboard["show_addresses"])
+            else:
+                result = discovery.result if discovery else initial_result(False)
             content_type = "application/json; charset=utf-8"
             body = json.dumps(result, ensure_ascii=False).encode()
         elif path in ASSETS:
@@ -108,7 +117,11 @@ def main():
             history.start()
         except (OSError, sqlite3.Error):
             logging.warning("Baza historii Lab Mon jest niedostępna. Sprawdź katalog danych.")
-    serve(create_app(snapshot, history), host=args.host, port=args.port, ident="Lab Mon")
+    discovery = None
+    if settings.discovery.enabled and not args.demo:
+        discovery = Discovery(snapshot)
+        discovery.start()
+    serve(create_app(snapshot, history, discovery), host=args.host, port=args.port, ident="Lab Mon")
 
 
 if __name__ == "__main__":

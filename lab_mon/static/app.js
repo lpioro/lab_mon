@@ -47,6 +47,7 @@ function selectView(view) {
   byId("table-view").hidden = view !== "table";
   byId("config-view").hidden = view !== "config";
   byId("history-view").hidden = view !== "history";
+  byId("discovery-view").hidden = view !== "discovery";
   byId("inventory-view").hidden = view !== "topology" && view !== "table";
   text("view-title", view === "table" ? "Tabela adresów" : "Topologia");
 }
@@ -100,6 +101,10 @@ function initConfiguration(settings) {
   configForm.elements.namedItem("history_enabled").checked = settings.history?.enabled ?? true;
   configForm.elements.namedItem("interval_seconds").value = settings.history?.interval_seconds ?? 60;
   configForm.elements.namedItem("retention_days").value = settings.history?.retention_days ?? 30;
+  configForm.elements.namedItem("discovery_enabled").checked = settings.discovery.enabled;
+  configForm.elements.namedItem("discovery_interval").value = settings.discovery.interval_seconds;
+  configForm.elements.namedItem("discovery_cidrs").value = settings.discovery.cidrs.join(", ");
+  configForm.elements.namedItem("discovery_ports").value = settings.discovery.ports.join(", ");
   if (settings.demo) {
     addSettingsEntry("source", {
       id: "lab", label: "Laboratorium", url: "https://proxmox.example.invalid:8006",
@@ -111,7 +116,7 @@ function initConfiguration(settings) {
     for (const service of data.services) addSettingsEntry("service", service);
     text("config-origin", settings.show_addresses
       ? "Ustawienia wczytane przy starcie aplikacji."
-      : "Ustawienia wczytane przy starcie. Adresy źródeł i usług ukrywa opcja show_addresses.");
+      : "Ustawienia wczytane przy starcie. Opcja show_addresses ukrywa adresy i podsieci skanowania.");
   }
   byId("restore-appearance").disabled = false;
   setAppearance(appearance);
@@ -171,6 +176,19 @@ function configToml() {
   for (const key of ["read_guest_networks", "show_addresses"]) {
     dashboard[key] = configForm.elements.namedItem(key).checked;
   }
+  const discovery = {
+    enabled: configForm.elements.namedItem("discovery_enabled").checked,
+    interval_seconds: Number(configForm.elements.namedItem("discovery_interval").value),
+    cidrs: configForm.elements.namedItem("discovery_cidrs").value.split(",").map(value => value.trim()).filter(Boolean),
+    ports: configForm.elements.namedItem("discovery_ports").value.split(",").map(value => value.trim()).filter(Boolean).map(Number),
+  };
+  if (discovery.enabled && !discovery.cidrs.length) {
+    throw new Error("Podaj dozwolone podsieci skanowania.");
+  }
+  if (discovery.ports.length < 1 || discovery.ports.length > 32
+      || discovery.ports.some(port => !Number.isInteger(port) || port < 1 || port > 65535)) {
+    throw new Error("Wpisz od 1 do 32 portów TCP z zakresu 1–65535.");
+  }
   const block = (name, fields) => [
     name, ...Object.entries(fields).map(([key, value]) =>
       `${key} = ${JSON.stringify(value).replace(/\x7f/g, "\\u007f")}`),
@@ -182,6 +200,7 @@ function configToml() {
       interval_seconds: Number(configForm.elements.namedItem("interval_seconds").value),
       retention_days: Number(configForm.elements.namedItem("retention_days").value),
     }),
+    block("[discovery]", discovery),
     ...sources.map(source => block("[[proxmox]]", source)),
     ...services.map(service => block("[[services]]", service)),
   ].join("\n\n") + "\n";

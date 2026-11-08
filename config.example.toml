@@ -13,6 +13,12 @@ enabled = true
 interval_seconds = 60
 retention_days = 30
 
+[discovery]
+enabled = false
+interval_seconds = 300
+cidrs = []
+ports = [22, 80, 443, 1883, 5000, 5678, 6052, 8006, 8080, 8123, 8443, 8883]
+
 [[proxmox]]
 id = "lab"
 label = "Laboratorium"

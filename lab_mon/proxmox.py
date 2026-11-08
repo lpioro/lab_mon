@@ -147,7 +147,7 @@ class Snapshot:
             except (ssl.SSLError, OSError):
                 self.clients[source.id] = None
 
-    def get(self):
+    def get(self, *, include_hidden_addresses=False):
         with self.lock:
             if time.monotonic() - self.last_poll >= self.settings.dashboard["refresh_seconds"]:
                 self.refresh()
@@ -157,7 +157,7 @@ class Snapshot:
             }
             if self.settings.dashboard["demo"]:
                 return demo_snapshot(data)
-            if not self.settings.dashboard["show_addresses"]:
+            if not self.settings.dashboard["show_addresses"] and not include_hidden_addresses:
                 return without_addresses(data)
             return data
 
